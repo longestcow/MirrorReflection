@@ -110,6 +110,9 @@ public class MirrorReflection extends ApplicationAdapter {
 					mirrors.add(new Mirror(new Vector2(0,0), new Vector2(800,0)), new Mirror(new Vector2(0,1), new Vector2(0,800)), new Mirror(new Vector2(0,800), new Vector2(800,800)), new Mirror(new Vector2(800,800), new Vector2(800,0)));
 				}	
 			}
+			
+			if(Gdx.input.isKeyJustPressed(Input.Keys.E) && mirrors.size!=0) 
+				mirrors.pop();
 	    }
 	    else { 
 	    	
@@ -133,7 +136,8 @@ public class MirrorReflection extends ApplicationAdapter {
 			if(Gdx.input.isKeyJustPressed(Input.Keys.C)) 
 				lights.clear();
 
-			
+			if(Gdx.input.isKeyJustPressed(Input.Keys.E) && lights.size!=0) 
+				lights.pop();
 
 	    }
 	    
@@ -154,7 +158,6 @@ public class MirrorReflection extends ApplicationAdapter {
 	    			normal.set(-(m.getEnd().y - m.getStart().y), (m.getEnd().x - m.getStart().x)).nor();
 	    			tempDir1 = l.getDir(); tempDir2 = l.getDir();
 	    			l.setDir(tempDir1.sub(normal.scl(2 * tempDir2.dot(normal))));
-	    			break;
 	    		}
 	    	}
 	    	
@@ -165,14 +168,11 @@ public class MirrorReflection extends ApplicationAdapter {
 	    	drawCircle(l, lightRadius, lightColor);
 	    	
 	    }
-	    
 		
-		
-		for(Mirror key : mirrors) {
+	    //render mirrors
+		for(Mirror key : mirrors) 
 	    	drawLine(key, mirrorWidth, mirColor);
-		}
-		
-		
+
 	}
 	
 
