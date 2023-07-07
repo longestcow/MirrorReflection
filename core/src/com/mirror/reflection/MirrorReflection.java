@@ -10,43 +10,45 @@ import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
-import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType;
 import com.badlogic.gdx.math.Intersector;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
-import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ScreenUtils;
 
 
 public class MirrorReflection extends ApplicationAdapter {
 	
+	//changeable stuff:
+	float lightSpeed = 20;
+	int mirrorWidth = 16, lightRadius = 5;
+	
+	
 	private OrthographicCamera camera;
 	private SpriteBatch batch;
 	public ShapeRenderer sr;
 	Rectangle bounds = new Rectangle();
-	
 	Pixmap mirCur, lightCur;
-	
-	public boolean mir = true;
-	public Vector3 mousePoint3D; public Vector2 mousePoint = new Vector2(), mStartPoint = new Vector2(), lStartPoint = new Vector2();
-	public boolean mPressed,lPressed;
+	Color mirColor = new Color(131f/255f,131f/255f,131f/255f,1), lightColor = new Color(229f/255f,229/255f,229/255f,1);
+
+	public Vector2 mousePoint = new Vector2(), mStartPoint = new Vector2(), lStartPoint = new Vector2();
+	public boolean mPressed,lPressed,mir = true;
 	
 	
 	Array<Light> lights = new Array<>();
 	Array<Mirror> mirrors = new Array<>();
 
-
-	Color mirColor = new Color(131f/255f,131f/255f,131f/255f,1), lightColor = new Color(229f/255f,229/255f,229/255f,1);
-	double angle = 45.0f, rad; Vector2 direction = new Vector2();
-	float lightSpeed = 20;
-	Vector2 lightNext = new Vector2(), collision = new Vector2();
+ 
+	double rad;
+	
+	//empty vectors
+	Vector2 direction = new Vector2(), lightNext = new Vector2(), tempDir1 = new Vector2(), tempDir2 = new Vector2(), normal = new Vector2();
 	
 	@Override
 	public void create () {
-		mirrors.add(new Mirror(new Vector2(0,0), new Vector2(800,0)), new Mirror(new Vector2(0,1), new Vector2(0,800)), new Mirror(new Vector2(0,800), new Vector2(800,800)), new Mirror(new Vector2(800,800), new Vector2(800,0)));
-
-
+		//set boundary mirrors
+		mirrors.add(new Mirror(new Vector2(-10,0), new Vector2(810,0)), new Mirror(new Vector2(0,1), new Vector2(0,810)), new Mirror(new Vector2(0,800), new Vector2(800,800)), new Mirror(new Vector2(800,800), new Vector2(800,-10)));
+		
 		camera = new OrthographicCamera();
 		camera.setToOrtho(false, 800, 800);
 		bounds.set(0, 0, 800, 800);
@@ -57,7 +59,7 @@ public class MirrorReflection extends ApplicationAdapter {
 		mirCur = new Pixmap(Gdx.files.internal("mirrorCursor.png"));
 		lightCur = new Pixmap(Gdx.files.internal("lightCursor.png"));
 
-		Gdx.graphics.setCursor(Gdx.graphics.newCursor(mirCur, 16/2, 16/2));
+		Gdx.graphics.setCursor(Gdx.graphics.newCursor(mirCur, mirrorWidth/2, mirrorWidth/2));
 		
 		
 	}
@@ -68,7 +70,7 @@ public class MirrorReflection extends ApplicationAdapter {
 			if(mir)
 				Gdx.graphics.setCursor(Gdx.graphics.newCursor(lightCur, 4/2, 4/2));
 			else
-				Gdx.graphics.setCursor(Gdx.graphics.newCursor(mirCur, 16/2, 16/2));
+				Gdx.graphics.setCursor(Gdx.graphics.newCursor(mirCur, mirrorWidth/2, mirrorWidth/2));
 			mir=!mir;
 		}
 
@@ -82,7 +84,7 @@ public class MirrorReflection extends ApplicationAdapter {
 	    if(mir) {
 		    if(mPressed) {
 		    	batch.begin();
-		    	drawLine(new Mirror(mStartPoint, mousePoint), 16, mirColor);
+		    	drawLine(new Mirror(mStartPoint, mousePoint), mirrorWidth, mirColor);
 		    	batch.end();
 		    }
 			
@@ -96,6 +98,17 @@ public class MirrorReflection extends ApplicationAdapter {
 				Vector2 touchPos = new Vector2(Gdx.input.getX(), camera.viewportHeight - Gdx.input.getY());
 				mirrors.add(new Mirror(mStartPoint, touchPos));
 				mPressed=false;
+			}
+			
+			
+			if(Gdx.input.isKeyJustPressed(Input.Keys.C)) {
+				if(mirrors.size==4) 
+					mirrors.clear();
+				
+				else {
+					mirrors.clear();
+					mirrors.add(new Mirror(new Vector2(0,0), new Vector2(800,0)), new Mirror(new Vector2(0,1), new Vector2(0,800)), new Mirror(new Vector2(0,800), new Vector2(800,800)), new Mirror(new Vector2(800,800), new Vector2(800,0)));
+				}	
 			}
 	    }
 	    else { 
@@ -116,50 +129,52 @@ public class MirrorReflection extends ApplicationAdapter {
 				lStartPoint = touchPos;
 				lPressed=true;
 			}
+			
+			if(Gdx.input.isKeyJustPressed(Input.Keys.C)) 
+				lights.clear();
+
+			
 
 	    }
 	    
-	    //lights stuff
 	    for(Light l : lights) {
-	    	//check collision
-	    	for(Mirror mirror : mirrors) {
-	    		if(checkCollision(mirror, l)) 
+	    	
+	    	//remove if out of bounds
+            if (!bounds.contains(l.getPos())) {
+                lights.removeValue(l, false);
+                break;
+            }
+	    	
+	    	//collision with mirror
+	    	for(Mirror m : mirrors) {
+	    		lightNext.set(l.getPos().x + l.getDir().x, l.getPos().y + l.getDir().y);
+	    		//https://math.stackexchange.com/questions/13261/how-to-get-a-reflection-vector formula for reflection
+	    		if(Intersector.intersectSegments(m.getStart(), m.getEnd(), l.getPos(), lightNext, null)) {
+	    			//https://stackoverflow.com/a/1243676 normal formula (i just used the first normal because it works so i guess i dont need the second normal)
+	    			normal.set(-(m.getEnd().y - m.getStart().y), (m.getEnd().x - m.getStart().x)).nor();
+	    			tempDir1 = l.getDir(); tempDir2 = l.getDir();
+	    			l.setDir(tempDir1.sub(normal.scl(2 * tempDir2.dot(normal))));
 	    			break;
-	    		
+	    		}
 	    	}
-	    	//move light
+	    	
+	    	//move 
 	    	l.setPos(l.getPos().add(l.getDir()));
 	    	
 	    	//render
-	    	drawCircle(l, 5, lightColor);
+	    	drawCircle(l, lightRadius, lightColor);
 	    	
-	    	//remove if out of bounds
-            if (!bounds.contains(l.getPos()))
-                lights.removeValue(l, false);
 	    }
 	    
 		
 		
 		for(Mirror key : mirrors) {
-	    	drawLine(key, 16, mirColor);
+	    	drawLine(key, mirrorWidth, mirColor);
 		}
 		
 		
 	}
 	
-
-
-
-	private boolean checkCollision(Mirror m, Light l) {
-		lightNext.set(l.getPos().x + l.getDir().x, l.getPos().y + l.getDir().y);
-		if(Intersector.intersectSegments(m.getStart(), m.getEnd(), l.getPos(), lightNext, collision)) {
-			
-			System.out.println(collision);
-            return true;
-		}
-			
-		return false;
-	}
 
 	@Override
 	public void dispose () {
