@@ -14,3 +14,4 @@ Press e while in light mode to remove the most recently added light.
   
 This project is pretty much just me trying out LibGDX for the first time.  
 [Link to main code file](https://github.com/longestcow/MirrorReflection/blob/main/core/src/com/mirror/reflection/MirrorReflection.java)  
+[Link to jar file](https://github.com/longestcow/MirrorReflection/releases/tag/v1)
